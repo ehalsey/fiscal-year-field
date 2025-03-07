@@ -1,0 +1,19 @@
+.fiscal-year-input {
+    width: 100%;
+    max-width: 80px;
+    padding: 5px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.fiscal-year-input:focus {
+    border-color: #0078d4;
+    outline: none;
+}
+
+.fiscal-year-input::placeholder {
+    color: #888;
+    font-style: italic;
+}

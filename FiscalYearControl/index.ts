@@ -1,52 +1,82 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
 
 export class FiscalYearControl implements ComponentFramework.StandardControl<IInputs, IOutputs> {
-    /**
-     * Empty constructor.
-     */
-    constructor() {
-        // Empty
-    }
+    private _value: string | null;
+    private _lastValidValue: string;
+    private _notifyOutputChanged: () => void;
+    private _container: HTMLDivElement;
+    private _inputElement: HTMLInputElement;
+    private _transitionMonth: number;
 
-    /**
-     * Used to initialize the control instance. Controls can kick off remote server calls and other initialization actions here.
-     * Data-set values are not initialized here, use updateView.
-     * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to property names defined in the manifest, as well as utility functions.
-     * @param notifyOutputChanged A callback method to alert the framework that the control has new outputs ready to be retrieved asynchronously.
-     * @param state A piece of data that persists in one session for a single user. Can be set at any point in a controls life cycle by calling 'setControlState' in the Mode interface.
-     * @param container If a control is marked control-type='standard', it will receive an empty div element within which it can render its content.
-     */
     public init(
         context: ComponentFramework.Context<IInputs>,
         notifyOutputChanged: () => void,
         state: ComponentFramework.Dictionary,
         container: HTMLDivElement
     ): void {
-        // Add control initialization code
+        this._notifyOutputChanged = notifyOutputChanged;
+        this._container = container;
+
+        this._transitionMonth = context.parameters.transitionMonth.raw !== null ? context.parameters.transitionMonth.raw : 9;
+        if (this._transitionMonth < 0 || this._transitionMonth > 11) this._transitionMonth = 9;
+
+        this._inputElement = document.createElement("input");
+        this._inputElement.setAttribute("type", "text");
+        this._inputElement.setAttribute("maxlength", "4");
+        this._inputElement.setAttribute("placeholder", "e.g., 2025");
+        this._inputElement.classList.add("fiscal-year-input");
+        this._container.appendChild(this._inputElement);
+
+        this._value = context.parameters.yearValue.raw || this.getDefaultFiscalYear();
+        this._lastValidValue = this._value;
+        this._inputElement.value = this._value;
+
+        this._inputElement.addEventListener("change", this.onChange.bind(this));
     }
 
-
-    /**
-     * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
-     * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
-     */
     public updateView(context: ComponentFramework.Context<IInputs>): void {
-        // Add code to update control view
+        this._transitionMonth = context.parameters.transitionMonth.raw !== null ? context.parameters.transitionMonth.raw : 9;
+        if (this._transitionMonth < 0 || this._transitionMonth > 11) this._transitionMonth = 9;
+
+        const newValue = context.parameters.yearValue.raw;
+        if (newValue !== this._value) {
+            this._value = newValue || this.getDefaultFiscalYear();
+            this._lastValidValue = this._value;
+            this._inputElement.value = this._value;
+        }
     }
 
-    /**
-     * It is called by the framework prior to a control receiving new data.
-     * @returns an object based on nomenclature defined in manifest, expecting object[s] for property marked as "bound" or "output"
-     */
     public getOutputs(): IOutputs {
-        return {};
+        return {
+            yearValue: this._value
+        };
     }
 
-    /**
-     * Called when the control is to be removed from the DOM tree. Controls should use this call for cleanup.
-     * i.e. cancelling any pending remote calls, removing listeners, etc.
-     */
     public destroy(): void {
-        // Add code to cleanup control if necessary
+        this._inputElement.removeEventListener("change", this.onChange);
+    }
+
+    private onChange(event: Event): void {
+        const input = (event.target as HTMLInputElement).value.trim();
+        if (this.isValidYear(input)) {
+            this._value = input;
+            this._lastValidValue = input;
+            this._notifyOutputChanged();
+        } else {
+            this._inputElement.value = this._lastValidValue;
+        }
+    }
+
+    private isValidYear(year: string): boolean {
+        const yearNumber = parseInt(year, 10);
+        return year.length === 4 && !isNaN(yearNumber) && yearNumber >= 1900 && yearNumber <= 2100;
+    }
+
+    private getDefaultFiscalYear(): string {
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+        const fiscalYear = currentMonth >= this._transitionMonth ? currentYear + 1 : currentYear;
+        return fiscalYear.toString();
     }
 }
